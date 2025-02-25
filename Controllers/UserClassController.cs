@@ -26,7 +26,7 @@ namespace POS_Data_API.Controllers
             try
             {
                 string shopName = body["shopName"];
-                float cash = JsonConvert.DeserializeObject<float>(body["cash"]);
+                double cash = JsonConvert.DeserializeObject<double>(body["cash"]);
                 int id = JsonConvert.DeserializeObject<int>(body["userId"]);
                 string phone = body["phone"];
 

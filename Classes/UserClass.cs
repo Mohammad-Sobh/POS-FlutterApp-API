@@ -43,56 +43,49 @@ namespace POS_Data_API.Classes
 
         public class UserStock
         {
-            public float Cash { get; set; } = 0;
+            public double Cash { get; set; } = 0;
             public List<Bill> Bills { get; set; } = new List<Bill>();
+            public List<Sale> Sales { get; set; } = new List<Sale>();
             public List<string> Categories { get; set; } = new List<string>();
             public List<Item> Items { get; set; } = new List<Item>();
             public UserStock() { }
-            //public void CreateUserStock()
-            //{
-            //    Cash = 0;
-            //    Bills = new List<Bill>();
-            //    Categories = new List<string>();
-            //    Items = new List<Item>();
-
-            //    //test
-            //    AddCategory("Phones");
-            //    AddCategory("Tablets");
-            //    AddItem("Iphone 11", 299, "null", "Phones");
-            //    AddItem("Iphone 12", 345, "null", "Phones");
-            //    AddItem("Iphone 11 Used", 189, "null", "Phones");
-            //    AddItem("Iphone 15PM", 799, "null", "Phones");
-            //    AddItem("Iphone 15", 559, "null", "Phones");
-            //    AddItem("Ipad 11th Gen", 445, "null", "Tablets");
-            //    AddItem("Vikosha Z60", 159, "null", "Tablets");
-            //    AddItem("G-Tab G80 10\'", 69, "null", "Tablets");
-
-            //    //Bills.Add();
-            //    //Bills.Add();
-            //    //Bills.Add();
-
-            //}
+            public void EditItem(int id, string? name, double? price, string? pic, string? category, string? description, string? barcode)
+            {
+                //category = category.ToLower();
+                if (Items.Exists( i => i.Id == id))
+                {
+                    var index = Items.FindIndex(i => i.Id == id);
+                    Items[index] = Items.Find(i => i.Id == id)!.CopyWith(category, name, price, pic, description, barcode);
+                }
+            }
             public void AddCategory(string name)
             {
+                name = name.ToLower();
                 if (Categories.Exists(x => x == name))
                     throw new Exception("Cetegory with the same name already added.");
                 Categories.Add(name);
             }
-            public List<Item> GetCategory(string name)
+            public List<Item> GetCategory(string name) 
             {
+                name = name.ToLower();
+                List<Item> items = new List<Item>();
+                if(name == "all")
+                {
+                    items.AddRange(Items.FindAll(x => x.Category == "none"));
+                    items.AddRange(Items.FindAll(x => x.Category != "none"));
+                    return items;
+                }
                 if (!Categories.Exists(x => x == name))
                     throw new Exception("Cetegory with the same name was not found.");
-                List<Item> items = new List<Item>();
-                items.AddRange(Items.FindAll(x => x.Category == name));
-                items.AddRange(Items.FindAll(x => x.Category == "none"));
+                items.AddRange(Items.FindAll(x => x.Category.ToLower() == name));
                 return items;
             }
-            public void AddItem(string name, float price, string pic, string category)
+            public void AddItem(string name, double price, string pic, string category, string description, string barcode)
             {
                 if (!Categories.Exists(x => x == category))
                     throw new Exception("Cetegory with the same name was not found.");
                 Items.Add(new Item(genarate_id(name, category, price.ToString()),
-                    category, name, price, pic));
+                    category, name, price, pic, description, barcode));
 
                 //Generate Item ID
                 int genarate_id(string n, string c, string p)
@@ -111,23 +104,31 @@ namespace POS_Data_API.Classes
                     return id;
                 }
             }
-            public void AddBill(List<int> id, float discount)
+            public void AddBill(double total, string description)
+            {                
+                Bill bill = new Bill(Sales.Count + 100, DateTime.UtcNow.AddHours(3).ToString(),total,description);
+                Cash -= bill.Total;
+                Bills.Add(bill);
+            }
+            public void AddSale(List<int> id, double discount)
             {
                 List<Item> items = new List<Item>();
                 foreach (var i in id)
                 {
-                    items.Add(Items.Find(x => x.Id == i));
+                    items.Add(Items.Find(x => x.Id == i)!);
                 }
-                Bill bill = new Bill(Bills.Count + 100, DateTime.UtcNow.AddHours(3).ToString(), items, discount);
-                Cash += bill.Total;
-                Bills.Add(bill);
+                Sale sale = new Sale(Sales.Count + 100, DateTime.UtcNow.AddHours(3).ToString(), items, discount);
+                Cash += sale.Total;
+                Sales.Add(sale);
             }
             public void RemoveCategory(string name)
             {
+                name = name.ToLower();
                 Categories.Remove(name);
-                foreach(Item item in Items)
+                foreach (Item item in Items)
                 {
-                    Items.Find(x => x.Category == name).Category = "none";
+                    if (item.Category == name) 
+                        item.Category = "none";
                 }
             }
             public void RemoveItem(int id)
@@ -141,28 +142,44 @@ namespace POS_Data_API.Classes
         {
             public int Id { get; set; }
             public string Name { get; set; }
-            public float Price { get; set; }
+            public string Description { get; set; }
+            public string Barcode { get; set; }
+            public double Price { get; set; }
             public string Pic { get; set; }
             public string Category { get; set; }
-            public Item(int id, string category, string name, float price, string pic)
+            public Item(int id, string category, string name, double price, string pic, string description, string barcode)
             {
                 Name = name;
                 Id = id;
                 Price = price;
                 Pic = pic;
                 Category = category;
+                Description = description;
+                Barcode = barcode;
+            }
+            public Item CopyWith(string? category, string? name, double? price, string? pic, string? description, string? barcode)
+            {
+                return new Item(
+                    this.Id,
+                    category?.ToLower() ?? this.Category,
+                    name ?? this.Name,
+                    price ?? this.Price,
+                    pic ?? this.Pic,
+                    description ?? this.Description,
+                    barcode ?? this.Barcode
+                    );
             }
             public Item() { }
         }
 
-        public class Bill
+        public class Sale
         {
             public int Id { get; set; }
             public string Date { get; set; }
-            public float Total { get; set; }
+            public double Total { get; set; }
             public List<Item> Items { get; set; }
-            public float Discount { get; set; }
-            public Bill(int id, string date, List<Item> items, float discount)
+            public double Discount { get; set; }
+            public Sale(int id, string date, List<Item> items, double discount)
             {
                 Id = id;
                 Date = date;
@@ -171,6 +188,22 @@ namespace POS_Data_API.Classes
                     Total = Total + i.Price;
                 Total = Total - discount;
                 Discount = discount;
+            }
+            public Sale() { }
+        }
+        
+        public class Bill
+        {
+            public int Id { get; set; }
+            public string Date { get; set; }
+            public double Total { get; set; }
+            public string Description { get; set; }
+            public Bill(int id, string date, double total, string description)
+            {
+                Total = total;
+                Description = description;
+                Id = id;
+                Date = date;
             }
             public Bill() { }
         }

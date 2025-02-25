@@ -19,6 +19,45 @@ namespace POS_Data_API.Controllers
     [ApiController]
     public class UserStockController : ControllerBase
     {
+        //body = (phone , id , name , pic , category , price)
+        [HttpPost("EditItem")]
+        public async Task<IActionResult> EditItem([FromBody] Dictionary<string, string> body)
+        {
+            try
+            {
+                string phone = body["phone"];
+                int id = int.Parse(body["userId"]);
+                
+                int itemId = int.Parse(body["itemId"]);
+                string? name = body["name"];
+                string? pic = body["pic"];
+                string? category = body["category"];
+                double? price = JsonConvert.DeserializeObject<double>(body["price"]);
+                string? description = body["description"];
+                string? barcode = body["barcode"];
+
+                var check = await new FB().firebase.GetTaskAsync("USERS/" + phone);//query
+                if (check.Body == "null")
+                {
+                    return StatusCode(404, "user does not exist");
+                }
+                else
+                {
+                    UserClass user = check.ResultAs<UserClass>();
+                    if (user.UserID == id)
+                    {
+                        user.Stock.EditItem(itemId, name, price, pic, category, description, barcode);
+                        FirebaseResponse response = await new FB().firebase.UpdateTaskAsync("USERS/" + phone + "/", user);
+                        return Ok(response);
+                    }
+                }
+                return StatusCode(404, $"User info error");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
         //body = (phone , id , name)
         [HttpPost("AddCategory")]
         public async Task<IActionResult> AddCategory([FromBody] Dictionary<string, string> body)
@@ -61,7 +100,9 @@ namespace POS_Data_API.Controllers
                 string name = body["name"];
                 string pic = body["pic"];
                 string category = body["category"];
-                float price = JsonConvert.DeserializeObject<float>(body["price"]);
+                string description = body["description"];
+                string barcode = body["barcode"];
+                double price = JsonConvert.DeserializeObject<double>(body["price"]);
 
                 var check = await new FB().firebase.GetTaskAsync("USERS/" + phone);//query
                 if (check.Body == "null")
@@ -73,7 +114,7 @@ namespace POS_Data_API.Controllers
                     UserClass user = check.ResultAs<UserClass>();
                     if (user.UserID == id)
                     {
-                        user.Stock.AddItem(name, price, pic, category);
+                        user.Stock.AddItem(name, price, pic, category, description, barcode);
                         FirebaseResponse response = await new FB().firebase.UpdateTaskAsync("USERS/" + phone + "/",user);
                         return Ok(response);
                     }
@@ -85,7 +126,8 @@ namespace POS_Data_API.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
-        //body = (phone , id , itemsId , discount)
+
+        //body = (phone , id , total , description)
         [HttpPost("AddBill")]
         public async Task<IActionResult> AddBill([FromBody] Dictionary<string, string> body)
         {
@@ -93,8 +135,9 @@ namespace POS_Data_API.Controllers
             {
                 string phone = body["phone"];
                 int id = int.Parse(body["userId"]);
-                List<int> itemsId = JsonConvert.DeserializeObject<List<int>>(body["itemsId"]);
-                float discount = JsonConvert.DeserializeObject<float>(body["discount"]);
+
+                double total = JsonConvert.DeserializeObject<double>(body["total"]);
+                string description = body["description"];
 
                 var check = await new FB().firebase.GetTaskAsync("USERS/" + phone);//query
                 if (check.Body == "null")
@@ -106,7 +149,42 @@ namespace POS_Data_API.Controllers
                     UserClass user = check.ResultAs<UserClass>();
                     if (user.UserID == id)
                     {
-                        user.Stock.AddBill(itemsId, discount);
+                        user.Stock.AddBill(total, description);
+                        FirebaseResponse response = await new FB().firebase.UpdateTaskAsync("USERS/" + phone + "/", user);
+                        return Ok(response);
+                    }
+                }
+                return StatusCode(404, $"User info error");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        //body = (phone , id , itemsId , discount)
+        [HttpPost("AddSale")]
+        public async Task<IActionResult> AddSale([FromBody] Dictionary<string, string> body)
+        {
+            try
+            {
+                string phone = body["phone"];
+                int id = int.Parse(body["userId"]);
+                List<int> itemsId = JsonConvert.DeserializeObject<List<int>>(body["itemsId"]) ?? [];
+                double discount = JsonConvert.DeserializeObject<double>(body["discount"]);
+                if (itemsId.Count == 0)
+                    return StatusCode(400, $"Empty Data"); //empty sale bug
+                var check = await new FB().firebase.GetTaskAsync("USERS/" + phone);//query
+                if (check.Body == "null")
+                {
+                    return StatusCode(404, "user does not exist");
+                }
+                else
+                {
+                    UserClass user = check.ResultAs<UserClass>();
+                    if (user.UserID == id)
+                    {
+                        user.Stock.AddSale(itemsId, discount);
                         FirebaseResponse response = await new FB().firebase.UpdateTaskAsync("USERS/" + phone + "/",user);
                         return Ok(response);
                     }
@@ -182,8 +260,8 @@ namespace POS_Data_API.Controllers
         }
         
         //fetch user data //body = (phone , id)
-        [HttpPost("GetBills")]
-        public async Task<IActionResult> GetBills([FromBody] Dictionary<string, string> body)
+        [HttpPost("GetSales")]
+        public async Task<IActionResult> GetSales([FromBody] Dictionary<string, string> body)
         {
             try
             {
@@ -198,7 +276,7 @@ namespace POS_Data_API.Controllers
                 {
                     if (check.ResultAs<UserClass>().UserID == id)
                     {
-                        return Ok(check.ResultAs<UserClass>().Stock.Bills);
+                        return Ok(check.ResultAs<UserClass>().Stock.Sales);
                     }
                 }
                 return StatusCode(404, $"User info error");
