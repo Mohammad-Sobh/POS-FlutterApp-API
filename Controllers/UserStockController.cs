@@ -162,6 +162,33 @@ namespace POS_Data_API.Controllers
             }
         }
 
+        [HttpPost("GetBills")]
+        public async Task<IActionResult> GetBills([FromBody] Dictionary<string, string> body)
+        {
+            try
+            {
+                string phone = body["phone"];
+                int id = int.Parse(body["userId"]);
+                var check = await new FB().firebase.GetTaskAsync("USERS/" + phone);//query
+                if (check.Body == "null")
+                {
+                    return StatusCode(404, "user does not exist");
+                }
+                else
+                {
+                    if (check.ResultAs<UserClass>().UserID == id)
+                    {
+                        return Ok(check.ResultAs<UserClass>().Stock.Bills);
+                    }
+                }
+                return StatusCode(404, $"User info error");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
         //body = (phone , id , itemsId , discount)
         [HttpPost("AddSale")]
         public async Task<IActionResult> AddSale([FromBody] Dictionary<string, string> body)
