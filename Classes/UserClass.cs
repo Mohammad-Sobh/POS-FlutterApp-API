@@ -55,7 +55,7 @@ namespace POS_Data_API.Classes
                 if (Items.Exists( i => i.Id == id))
                 {
                     var index = Items.FindIndex(i => i.Id == id);
-                    Items[index] = Items.Find(i => i.Id == id)!.CopyWith(category, name, price, pic, description, barcode);
+                    Items[index] = Items[index].CopyWith(category, name, price, pic, description, barcode);
                 }
             }
             public void AddCategory(string name)
@@ -82,6 +82,7 @@ namespace POS_Data_API.Classes
             }
             public void AddItem(string name, double price, string pic, string category, string description, string barcode)
             {
+                category = category.ToLower();
                 if (!Categories.Exists(x => x == category))
                     throw new Exception("Cetegory with the same name was not found.");
                 Items.Add(new Item(genarate_id(name, category, price.ToString()),
