@@ -42,8 +42,8 @@ namespace POS_Data_API.Controllers
                     {
                         user.ShopName = shopName;
                         user.Stock.Cash = cash;
-                        await new FB().firebase.UpdateTaskAsync(@"USERS/" + phone + "/", user); //query //warning!!
-                        return Ok();
+                        FirebaseResponse response = await new FB().firebase.UpdateTaskAsync(@"USERS/" + phone + "/", user); //query //warning!!
+                        return Ok(response);
                     }
                 }
                 return StatusCode(404, $"User info error");
